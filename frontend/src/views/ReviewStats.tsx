@@ -15,7 +15,7 @@ interface ReviewStatsProps {
 
 const ReviewStats: React.FC<ReviewStatsProps> = ({ googleSentiment, tripadvisorSentiment }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl mt-4">
+    <div className="grid grid-cols-1 md:grid-cols-1 gap-4 rounded-2xl mt-4">
       {/* Google Sentiment Card */}
       <div className="rounded-2xl p-4 flex flex-col justify-center bg-sky-100 dark:bg-opacity-75">
         <div className="flex justify-between items-center relative">
@@ -28,7 +28,7 @@ const ReviewStats: React.FC<ReviewStatsProps> = ({ googleSentiment, tripadvisorS
               Avg Star Count: {googleSentiment?.avg_star_count?.toFixed(2)}
             </h4>
           </div>
-          <div className="flex items-center justify-center min-h-12 min-w-12 max-h-12 max-w-12 bg-whitetext-white rounded-full text-2xl">
+          <div className="flex items-center justify-center min-h-12 min-w-12 max-h-12 max-w-12 bg-white text-white rounded-full text-2xl">
             <img
               src="/img/logo/google.png" // Replace with your actual image path
               alt="Google Logo"
