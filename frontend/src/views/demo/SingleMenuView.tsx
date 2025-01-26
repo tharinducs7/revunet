@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui";
 import axios from "axios";
+import SentimentAlert from "@/components/shared/SentimentAlert";
 
 const MapSearchBox = () => {
     const mapRef1 = useRef<HTMLDivElement | null>(null);
@@ -10,23 +11,15 @@ const MapSearchBox = () => {
 
     const [selectedPlace1, setSelectedPlace1] = useState<google.maps.places.PlaceResult | null>(null);
     const [selectedPlace2, setSelectedPlace2] = useState<google.maps.places.PlaceResult | null>(null);
-    const [responseData1, setResponseData1] = useState<any>(null);
-    const [responseData2, setResponseData2] = useState<any>(null);
+    const [comparisonResult, setComparisonResult] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
 
-    // Load Google Maps Script
     const loadGoogleMapsScript = async (): Promise<void> => {
         if (typeof window.google !== "undefined") return;
 
         return new Promise((resolve, reject) => {
-            const existingScript = document.querySelector(`script[src*="maps.googleapis.com/maps/api/js"]`);
-            if (existingScript) {
-                existingScript.addEventListener("load", () => resolve());
-                existingScript.addEventListener("error", () => reject(new Error("Failed to load Google Maps script")));
-                return;
-            }
-
             const script = document.createElement("script");
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places`;
             script.async = true;
             script.defer = true;
             script.onload = () => resolve();
@@ -35,29 +28,20 @@ const MapSearchBox = () => {
         });
     };
 
-    // Initialize Google Map and SearchBox
-    const initializeAutocomplete = (mapRef: React.RefObject<HTMLDivElement>, inputRef: React.RefObject<HTMLInputElement>, setSelectedPlace: React.Dispatch<React.SetStateAction<google.maps.places.PlaceResult | null>>) => {
-        if (!window.google) {
-            console.error("Google Maps API not loaded properly.");
-            return;
-        }
+    const initializeAutocomplete = (
+        mapRef: React.RefObject<HTMLDivElement>,
+        inputRef: React.RefObject<HTMLInputElement>,
+        setSelectedPlace: React.Dispatch<React.SetStateAction<google.maps.places.PlaceResult | null>>
+    ) => {
+        if (!window.google) return;
 
         const map = new google.maps.Map(mapRef.current as HTMLElement, {
             center: { lat: 7.2906, lng: 80.6337 },
             zoom: 13,
-            mapTypeId: "roadmap",
-            mapTypeControl: false,
-            fullscreenControl: false,
-            streetViewControl: false,
-            zoomControl: false,
         });
 
         const searchBox = new google.maps.places.SearchBox(inputRef.current as HTMLInputElement);
         map.controls[google.maps.ControlPosition.TOP_LEFT].push(inputRef.current as HTMLElement);
-
-        map.addListener("bounds_changed", () => {
-            searchBox.setBounds(map.getBounds() as google.maps.LatLngBounds);
-        });
 
         const markers: google.maps.Marker[] = [];
         searchBox.addListener("places_changed", () => {
@@ -65,32 +49,81 @@ const MapSearchBox = () => {
             if (!places || places.length === 0) return;
 
             markers.forEach((marker) => marker.setMap(null));
-            markers.length = 0;
-
             const bounds = new google.maps.LatLngBounds();
 
             places.forEach((place) => {
-                if (!place.geometry || !place.geometry.location) {
-                    console.error("Returned place contains no geometry");
-                    return;
-                }
+                if (!place.geometry || !place.geometry.location) return;
 
-                markers.push(
-                    new google.maps.Marker({
-                        map,
-                        title: place.name,
-                        position: place.geometry.location,
-                    })
-                );
-
-                if (place.geometry.viewport) bounds.union(place.geometry.viewport);
-                else bounds.extend(place.geometry.location);
-
+                markers.push(new google.maps.Marker({ map, position: place.geometry.location }));
+                bounds.extend(place.geometry.location);
                 setSelectedPlace(place);
+                setComparisonResult(null);
             });
 
             map.fitBounds(bounds);
         });
+    };
+
+    const getTopEmotion = (emotions: any) => {
+        // Exclude "positive", "negative", and "trust"
+        const excludedKeys = ["positive", "negative", "trust"];
+        const filteredEmotions = Object.entries(emotions).filter(
+            ([key]) => !excludedKeys.includes(key)
+        );
+
+        // Find the top emotion from the filtered list
+        const topEmotion = filteredEmotions.reduce<[string, number]>(
+            (max, current) =>
+                current[1] as number > max[1]
+                    ? (current as [string, number])
+                    : max,
+            ["None", 0]
+        );
+
+        return `${topEmotion[0]} (${topEmotion[1]})`;
+    };
+
+    const handleCompare = async () => {
+        if (!selectedPlace1?.place_id || !selectedPlace2?.place_id) {
+            alert("Please select two places to compare!");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await axios.post("http://127.0.0.1:5000/compare", {
+                location_id1: selectedPlace1.place_id,
+                location_id2: selectedPlace2.place_id,
+            });
+            setComparisonResult(response.data);
+        } catch (error) {
+            console.error("Error fetching comparison data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getEmotionsWithEmojis = (emotions: any) => {
+        // Map of emotions to emojis
+        const emotionEmojis: { [key: string]: string } = {
+            anger: "😡",
+            anticipation: "🤔",
+            disgust: "🤢",
+            fear: "😨",
+            joy: "😊",
+            sadness: "😢",
+            surprise: "😮",
+        };
+
+        // Filter and sort emotions in descending order of values
+        const sortedEmotions = Object.entries(emotions)
+            .filter(([key]) => key in emotionEmojis) // Only include emotions with emojis
+            .sort((a, b) => (b[1] as number) - (a[1] as number)); // Sort by value (highest to lowest)
+
+        // Return sorted emotions with emojis
+        return sortedEmotions.map(
+            ([emotion, value]) => `${emotionEmojis[emotion]} ${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${value})`
+        );
     };
 
     useEffect(() => {
@@ -100,76 +133,151 @@ const MapSearchBox = () => {
         });
     }, []);
 
-    // Fetch sentiment analysis data
-    const fetchSentimentData = async (placeId: string, setResponseData: React.Dispatch<React.SetStateAction<any>>) => {
-        try {
-            const response = await axios.post("http://127.0.0.1:5000/analyze", { location_id: placeId });
-            setResponseData(response.data);
-        } catch (error) {
-            console.error("Error fetching sentiment data:", error);
-        }
-    };
-
-    useEffect(() => {
-        if (selectedPlace1?.place_id) fetchSentimentData(selectedPlace1.place_id, setResponseData1);
-        if (selectedPlace2?.place_id) fetchSentimentData(selectedPlace2.place_id, setResponseData2);
-    }, [selectedPlace1, selectedPlace2]);
-
     return (
-        <div className="flex flex-col gap-4 max-w-full overflow-x-hidden">
-            {/* Card 1 */}
-            <Card
-                clickable
-                className="hover:shadow-lg transition duration-150 ease-in-out dark:border dark:border-gray-600"
-            >
-                <span className="text-emerald-600 font-semibold">Find The Place 1</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+            <Card className="p-4">
+                <h2 className="text-xl font-semibold mb-4 text-emerald-600">Find Place 1</h2>
                 <input
                     ref={inputRef1}
                     type="text"
                     placeholder="Search for a place"
-                    className="z-10 w-80 p-2 border rounded-lg mb-3"
+                    className="w-full p-2 border rounded-lg mb-4"
                 />
-                <div ref={mapRef1} style={{ height: "300px", width: "100%", marginTop: "20px" }}></div>
+                <div ref={mapRef1} className="h-64 w-full border rounded"></div>
             </Card>
 
-            {/* Card 2 */}
-            <Card
-                clickable
-                className="hover:shadow-lg transition duration-150 ease-in-out dark:border dark:border-gray-600"
-            >
-                <span className="text-emerald-600 font-semibold">Find The Place 2</span>
+            <Card className="p-4">
+                <h2 className="text-xl font-semibold mb-4 text-emerald-600">Find Place 2</h2>
                 <input
                     ref={inputRef2}
                     type="text"
                     placeholder="Search for another place"
-                    className="z-10 w-80 p-2 border rounded-lg mb-3"
+                    className="w-full p-2 border rounded-lg mb-4"
                 />
-                <div ref={mapRef2} style={{ height: "300px", width: "100%", marginTop: "20px" }}></div>
+                <div ref={mapRef2} className="h-64 w-full border rounded"></div>
             </Card>
 
-            {/* Sentiment Analysis Results */}
-            {responseData1 && (
-                <Card className="hover:shadow-lg transition duration-150 ease-in-out dark:border dark:border-gray-600">
-                    <span className="text-emerald-600 font-semibold">
-                        Sentiment Analysis for Place 1: {responseData1.location_name}
-                    </span>
-                    <div className="space-y-4 mt-3">
-                        <p><strong>Sentiment:</strong> {responseData1.sentiment}</p>
-                        <p><strong>Recommendations:</strong> {responseData1.recommendations}</p>
-                    </div>
-                </Card>
-            )}
+            <div className="col-span-full text-center">
+                <button
+                    onClick={handleCompare}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
+                >
+                    {loading ? "Comparing..." : "Compare"}
+                </button>
+            </div>
 
-            {responseData2 && (
-                <Card className="hover:shadow-lg transition duration-150 ease-in-out dark:border dark:border-gray-600">
-                    <span className="text-emerald-600 font-semibold">
-                        Sentiment Analysis for Place 2: {responseData2.location_name}
-                    </span>
-                    <div className="space-y-4 mt-3">
-                        <p><strong>Sentiment:</strong> {responseData2.sentiment}</p>
-                        <p><strong>Recommendations:</strong> {responseData2.recommendations}</p>
+            {comparisonResult && (
+                <div className="col-span-full">
+                    <h2 className="text-2xl font-bold mb-6">Comparison Results</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card className="p-4">
+                            <h3 className="text-xl font-semibold mb-4">{comparisonResult.location1.name}</h3>
+                            <p className="text-sm mb-2">
+                                <SentimentAlert sentimentScore={comparisonResult.location1.google_sentiment.average_sentiment} />
+                            </p>
+                            <p className="text-sm mb-2">
+                                <strong>Top Emotion:</strong> {getTopEmotion(comparisonResult.location1.emotions)}
+                            </p>
+                            <div className="text-sm ">
+                            <strong>Consumer Emotions:</strong>
+                                <ul className="mt-2 space-y-1">
+                                    {getEmotionsWithEmojis(comparisonResult.location1.emotions).map((emotion, index) => (
+                                        <li key={index} className="flex items-center space-x-2">
+                                            <span>{emotion}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                            <h3 className="text-xl font-semibold mb-4">{comparisonResult.location2.name}</h3>
+                            <p className="text-sm mb-2">
+                                <SentimentAlert sentimentScore={comparisonResult.location2.google_sentiment.average_sentiment} />
+                            </p>
+                            <p className="text-sm mb-2">
+                                <strong>Top Emotion:</strong> {getTopEmotion(comparisonResult.location2.emotions)}
+                            </p>
+                            <div className="text-sm">
+                                <strong>Consumer Emotions:</strong>
+                                <ul className="mt-2 space-y-1">
+                                    {getEmotionsWithEmojis(comparisonResult.location2.emotions).map((emotion, index) => (
+                                        <li key={index} className="flex items-center space-x-2">
+                                            <span>{emotion}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </Card>
                     </div>
-                </Card>
+
+                    <div className="mt-6">
+                        <h3 className="text-xl font-semibold mb-4">Aspect Comparison</h3>
+                        <div className="overflow-x-auto">
+                        <Card className="p-4">
+                            <table className="w-full border-collapse border border-gray-300">
+                                <thead>
+                                    <tr className="bg-gray-200">
+                                        <th className="border border-gray-300 px-4 py-2 text-left">Aspect</th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">{comparisonResult.location1.name}</th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">{comparisonResult.location2.name}</th>
+                                        <th className="border border-gray-300 px-4 py-2 text-left">Better Business</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {comparisonResult.comparison.aspect_comparison.map((aspect: any, index: number) => (
+                                        <tr key={index} className="hover:bg-gray-100">
+                                            <td className="border border-gray-300 px-4 py-2">{aspect.aspect}</td>
+                                            <td className="border border-gray-300 px-4 py-2">{aspect.business1_score}</td>
+                                            <td className="border border-gray-300 px-4 py-2">{aspect.business2_score}</td>
+                                            <td className="border border-gray-300 px-4 py-2">{aspect.better_business}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            </Card>
+
+                        </div>
+                    </div>
+
+
+                    {/* Recommendations Section */}
+                    <div className="mt-6">
+                        <h3 className="text-xl font-semibold mb-4">Recommendations</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Recommendations for Business 1 */}
+                            <Card className="p-4">
+                                <h4 className="text-lg font-semibold mb-4 text-emerald-600">
+                                    Recommendations for {comparisonResult.location1.name}
+                                </h4>
+                                <ul className="space-y-3">
+                                    {comparisonResult.recommendations.for_business1.map((rec: any, index: number) => (
+                                        <li key={index} className="p-3 border rounded-lg bg-gray-50">
+                                            <strong className="block mb-1 text-sm">{rec.title}</strong>
+                                            <span className="text-xs text-gray-600">Priority: {rec.priority}</span>
+                                            <p className="mt-1 text-sm">{rec.recommendation}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Card>
+
+                            {/* Recommendations for Business 2 */}
+                            <Card className="p-4">
+                                <h4 className="text-lg font-semibold mb-4 text-emerald-600">
+                                    Recommendations for {comparisonResult.location2.name}
+                                </h4>
+                                <ul className="space-y-3">
+                                    {comparisonResult.recommendations.for_business2.map((rec: any, index: number) => (
+                                        <li key={index} className="p-3 border rounded-lg bg-gray-50">
+                                            <strong className="block mb-1 text-sm">{rec.title}</strong>
+                                            <span className="text-xs text-gray-600">Priority: {rec.priority}</span>
+                                            <p className="mt-1 text-sm">{rec.recommendation}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

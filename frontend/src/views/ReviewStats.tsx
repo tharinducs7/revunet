@@ -1,3 +1,4 @@
+import SentimentAlert from "@/components/shared/SentimentAlert";
 import React from "react";
 
 interface ReviewStatsProps {
@@ -13,52 +14,80 @@ interface ReviewStatsProps {
   };
 }
 
+const getSentimentLabel = (score: any) => {
+  if (score <= -0.5) return "Very Negative";
+  if (score > -0.5 && score <= -0.1) return "Negative";
+  if (score > -0.1 && score <= 0.1) return "Neutral";
+  if (score > 0.1 && score <= 0.5) return "Positive";
+  if (score > 0.5) return "Very Positive";
+  return "Unknown";
+};
+
 const ReviewStats: React.FC<ReviewStatsProps> = ({ googleSentiment, tripadvisorSentiment }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-1 gap-4 rounded-2xl mt-4">
+    <div className="grid grid-cols-1 md:grid-cols-1 gap-4 rounded-2xl mt-4"  style={{ maxWidth: 360 }}>
       {/* Google Sentiment Card */}
-      <div className="rounded-2xl p-4 flex flex-col justify-center bg-sky-100 dark:bg-opacity-75">
+      <div className="rounded-2xl p-4 flex flex-col justify-center bg-white dark:bg-opacity-75">
         <div className="flex justify-between items-center relative">
           <div>
-            <div className="mb-4 text-gray-900 font-bold">Google Sentiment</div>
-            <h4 className="mb-1 text-gray-900">
-              Average Sentiment: {googleSentiment?.average_sentiment?.toFixed(2)}
-            </h4>
-            <h4 className="text-gray-700">
-              Avg Star Count: {googleSentiment?.avg_star_count?.toFixed(2)}
-            </h4>
-          </div>
-          <div className="flex items-center justify-center min-h-12 min-w-12 max-h-12 max-w-12 bg-white text-white rounded-full text-2xl">
-            <img
-              src="/img/logo/google.png" // Replace with your actual image path
-              alt="Google Logo"
-              className="h-8 w-8"
-            />
+            <div className="flex items-center gap-2 mb-4">
+              <span
+                className="avatar avatar-circle bg-transparent"
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  minWidth: "28px",
+                  lineHeight: "28px",
+                  fontSize: "12px",
+                }}
+              >
+                <img
+                  className="avatar-img avatar-circle"
+                  loading="lazy"
+                  src="/img/logo/google.png"
+                  alt="google"
+                />
+              </span>
+              <div className="heading-text font-bold">Google Sentiment </div>
+            </div>
+            <p className="mb-2">
+              <SentimentAlert sentimentScore={googleSentiment?.average_sentiment} />
+            </p>
           </div>
         </div>
       </div>
 
       {/* TripAdvisor Sentiment Card */}
-      <div className="rounded-2xl p-4 flex flex-col justify-center bg-emerald-100 dark:bg-opacity-75">
-        <div className="flex justify-between items-center relative">
-          <div>
-            <div className="mb-4 text-gray-900 font-bold">TripAdvisor Sentiment</div>
-            <h4 className="mb-1 text-gray-900">
-              Average Sentiment: {tripadvisorSentiment?.average_sentiment?.toFixed(2)}
-            </h4>
-            <h4 className="text-gray-700">
-              Avg Star Count: {tripadvisorSentiment?.avg_star_count?.toFixed(2)}
-            </h4>
-          </div>
-          <div className="flex items-center justify-center min-h-12 min-w-12 max-h-12 max-w-12 bg-white text-white rounded-full text-2xl">
-            <img
-              src="/img/logo/trip.png" // Replace with your actual image path
-              alt="TripAdvisor Logo"
-              className="h-8 w-8"
-            />
+        <div className="rounded-2xl p-4 flex flex-col justify-center bg-white dark:bg-opacity-75">
+          <div className="flex justify-between relative">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span
+                  className="avatar avatar-circle bg-transparent"
+                  style={{
+                    width: "28px",
+                    height: "28px",
+                    minWidth: "28px",
+                    lineHeight: "28px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <img
+                    className="avatar-img avatar-circle"
+                    loading="lazy"
+                    src="/img/logo/trip.png"
+                    alt="TripAdvisor"
+                  />
+                </span>
+                <div className="heading-text font-bold">TripAdvisor Sentiment </div>
+              </div>
+
+              <p className="mb-2">
+                <SentimentAlert sentimentScore={tripadvisorSentiment?.average_sentiment} />
+              </p>
+            </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

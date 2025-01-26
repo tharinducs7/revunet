@@ -1,0 +1,13 @@
+Flask
+flask-cors
+pandas
+requests
+textblob
+googlemaps
+fuzzywuzzy
+scikit-learn
+wordcloud
+matplotlib
+spacy
+langdetect
+nltk

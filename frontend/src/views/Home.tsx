@@ -129,6 +129,31 @@ const MapSearchBox = () => {
         }
     }, [selectedPlace]);
 
+    const getEmotionsWithEmojis = (emotions: any) => {
+        // Map of emotions to emojis
+        const emotionEmojis: { [key: string]: string } = {
+            anger: "😡",
+            anticipation: "🤔",
+            disgust: "🤢",
+            fear: "😨",
+            joy: "😊",
+            sadness: "😢",
+            surprise: "😮",
+            trust: "🤝",
+        };
+    
+        // Filter and sort emotions in descending order of values
+        const sortedEmotions = Object.entries(emotions)
+            .filter(([key]) => key in emotionEmojis) // Only include emotions with emojis
+            .sort((a, b) => (b[1] as number) - (a[1] as number)); // Sort by value (highest to lowest)
+    
+        // Return sorted emotions with emojis
+        return sortedEmotions.map(
+            ([emotion, value]) => `${emotionEmojis[emotion]} ${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${value})`
+        );
+    };
+
+    
     return (
         <div>
             <div className="flex flex-col gap-4 max-w-full overflow-x-hidden">
@@ -215,63 +240,28 @@ const MapSearchBox = () => {
                                                     alt="Word Cloud"
                                                     className="w-full max-h-64 object-contain"
                                                 />
+                                                <div className="text-sm m-2">
+                                                    <strong>Emotions:</strong>
+                                                    <ul className="mt-2 space-y-1">
+                                                        {getEmotionsWithEmojis(responseData?.emotions).map((emotion, index) => (
+                                                            <li key={index} className="flex items-center space-x-2">
+                                                                <span>{emotion}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                                <div className="text-sm m-2">
+                                                {/* <img
+                                                    src={`data:image/png;base64,${responseData?.aspect_analysis?.summary_ascepct}`}
+                                                    alt="Word Cloud"
+                                                    className="w-full max-h-64 object-contain"
+                                                /> */}
+                                                </div>
+                                                {/* <div className="text-sm m-2">
+                        {responseData?.aspect_analysis?.summary_ascepct}
+                                                </div> */}
                                             </div>
                                         </div>
-
-
-
-
-                                        {/* <h4 className="font-bold">{responseData.location_name}</h4> */}
-                                        {/* <div className="text-sm">
-                        <ReviewStats googleSentiment={responseData?.google_sentiment} tripadvisorSentiment={responseData?.tripadvisor_sentiment}/>
-                      <p className="font-medium text-gray-700">**Google Sentiment Analysis:**</p>
-                      <p>Average Sentiment: {responseData.google_sentiment.average_sentiment.toFixed(2)}</p>
-                      <p>Average Star Count: {responseData.google_sentiment.avg_star_count.toFixed(1)}</p>
-                      <p>
-                        Sentiment Group:
-                        <span className="ml-2">
-                          {JSON.stringify(responseData.google_sentiment.sentiment_category_group)}
-                        </span>
-                      </p>
-                    </div> */}
-                                        {/* <div className="text-sm">
-                      <p className="font-medium text-gray-700">**TripAdvisor Sentiment Analysis:**</p>
-                      <p>Average Sentiment: {responseData.tripadvisor_sentiment.average_sentiment.toFixed(2)}</p>
-                      <p>Average Star Count: {responseData.tripadvisor_sentiment.avg_star_count.toFixed(1)}</p>
-                      <p>
-                        Sentiment Group:
-                        <span className="ml-2">
-                          {JSON.stringify(responseData.tripadvisor_sentiment.sentiment_category_group)}
-                        </span>
-                      </p>
-                    </div> */}
-                                        {/* <div>
-                                            <h5 className="font-semibold text-lg">Recommendations</h5>
-                                            <h6 className="font-bold">For Owners</h6>
-                                            <ul className="list-disc pl-5">
-                                                <Recommendations data={responseData.recommendations.for_owners} />
-                                                {responseData.recommendations.for_owners.map((rec: any, index: number) => (
-                                                    <li key={index}>
-                                                        <strong>{rec.title}</strong>: {rec.recommendation} (Priority: {rec.priority})
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                            <h6 className="font-bold mt-4">For Customers</h6>
-                                            <ul className="list-disc pl-5">
-                                                {responseData.recommendations.for_customers.map((insight: any, index: number) => (
-                                                    <li key={index}>
-                                                        <strong>{insight.title}</strong>: {insight.insights} (Priority: {insight.priority})
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                        <div className="mt-4">
-                                            <img
-                                                src={`data:image/png;base64,${responseData.word_cloud}`}
-                                                alt="Word Cloud"
-                                                className="w-full max-h-64 object-contain"
-                                            />
-                                        </div> */}
                                     </div>
                                 ) : (
                                     <p className="text-gray-500">Select a place to view sentiment analysis.</p>
