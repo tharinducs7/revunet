@@ -71,17 +71,6 @@ const Recommendations = ({ data }: RecommendationsProps) => {
                                 </p>
                             </div>
                         </div>
-                        <div>
-                            <Tag
-                                className={`mr-2 rtl:ml-2 ${
-                                    recommendation.priority
-                                        ? labelClass[recommendation.priority]
-                                        : ''
-                                }`}
-                            >
-                                {recommendation.priority}
-                            </Tag>
-                        </div>
                     </div>
                 ))}
             </div>

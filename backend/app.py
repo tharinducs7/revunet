@@ -11,6 +11,21 @@ import io
 import base64
 from collections import Counter
 from flask_cors import CORS
+import numpy as np
+import json
+import spacy
+from langdetect import detect, DetectorFactory
+from collections import defaultdict
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import string
+import os
+
+nlp = spacy.load("en_core_web_sm")
+nltk.download("stopwords")
+nltk.download("punkt")
+DetectorFactory.seed = 0
 
 app = Flask(__name__)
 
@@ -21,6 +36,70 @@ gmaps = googlemaps.Client(key='AIzaSyAIljBK9Z0_Z24gTwZAkxg6LYlKx19q3G0')
 # Load the Restaurant Reviews CSV
 file_path = './trip_res_reviews.csv'
 reviews_df = pd.read_csv(file_path)
+
+def load_nrc_lexicon():
+    """
+    Load the NRC Emotion Lexicon into a dictionary.
+
+    Returns:
+        dict: A dictionary where keys are words and values are lists of associated emotions.
+    """
+    # Define the path to the NRC Emotion Lexicon file
+    file_path = "NRC-Emotion-Lexicon-Wordlevel-v0.92.txt"
+    
+    nrc_lexicon = {}
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Emotion Lexicon file not found at: {file_path}")
+    
+    with open(file_path, "r") as f:
+        for line in f:
+            # Skip empty lines or invalid lines
+            if not line.strip() or len(line.strip().split("\t")) != 3:
+                continue
+            
+            # Parse the line
+            word, emotion, association = line.strip().split("\t")
+            
+            # Add to dictionary if the association is "1"
+            if int(association) == 1:  # Only include words with an emotional association
+                if word not in nrc_lexicon:
+                    nrc_lexicon[word] = []
+                nrc_lexicon[word].append(emotion)
+    return nrc_lexicon
+
+def detect_emotions(reviews):
+    """
+    Detect overall emotions from a set of reviews using the NRC Emotion Lexicon.
+
+    Args:
+        reviews (list): List of review texts.
+
+    Returns:
+        dict: Aggregated count of emotions detected across all reviews.
+    """
+    # Load the NRC Lexicon inside this function
+    nrc_lexicon = load_nrc_lexicon()
+    
+    # Initialize emotion counter
+    emotion_counts = Counter()
+    
+    # Preprocessing tools
+    stop_words = set(stopwords.words("english"))
+    punctuation_table = str.maketrans("", "", string.punctuation)
+    
+    for review in reviews:
+        # Tokenize, remove stopwords and punctuation
+        tokens = word_tokenize(review.lower())
+        filtered_tokens = [word.translate(punctuation_table) for word in tokens if word not in stop_words]
+        
+        # Match words to emotions in the NRC lexicon
+        for word in filtered_tokens:
+            if word in nrc_lexicon:
+                for emotion in nrc_lexicon[word]:
+                    emotion_counts[emotion] += 1
+    
+    # Return aggregated emotion counts
+    return dict(emotion_counts)
 
 def analyze_sentiment(reviews):
     """
@@ -107,52 +186,93 @@ def generate_word_cloud(reviews):
     img_base64 = base64.b64encode(img.getvalue()).decode('utf-8')
     return img_base64
 
-# def post_to_rapidapi(reviews):
-#     """
-#     Post Google reviews to RapidAPI for actionable recommendations for owners and customers.
-#     """
-#     url = "https://chatgpt-42.p.rapidapi.com/chatgpt"
+def language_detection_and_sentiment(reviews):
+    """
+    Detect the language of reviews and analyze sentiment for each language separately.
     
-#     # Detailed prompt for recommendations
-#     content = (
-#         f"Based on the following reviews:\n\n{reviews}\n\n"
-#         "Provide actionable recommendations for improvement (owners) and highlight insights for customers."
-#         "Separate recommendations for owners and customers clearly."
-#     )
+    Args:
+        reviews (list): List of review texts.
     
-#     payload = {
-#         "messages": [
-#             {
-#                 "role": "user",
-#                 "content": content
-#             }
-#         ],
-#         "web_access": False
-#     }
-#     headers = {
-#         "x-rapidapi-key": "9d443f0279mshdebd82de2c89274p1c4e01jsn4b7d142ea901",
-#         "x-rapidapi-host": "chatgpt-42.p.rapidapi.com",
-#         "Content-Type": "application/json"
-#     }
+    Returns:
+        dict: Sentiment analysis results grouped by language.
+    """
+    analysis_results = defaultdict(list)  # Group results by language
     
-#     try:
-#         response = requests.post(url, json=payload, headers=headers)
-#         response_data = response.json()
-#         print("Raw RapidAPI Response:", response_data)  # Debugging the API response
-#         return response_data
-#     except Exception as e:
-#         print(f"Error posting to RapidAPI: {e}")
-#         return {
-#             "owners": ["Failed to fetch recommendations from RapidAPI."],
-#             "customers": ["Failed to fetch insights from RapidAPI."]
-#         }
-import json  # Import the JSON module to parse JSON strings
+    for review in reviews:
+        try:
+            # Detect language of the review
+            language = detect(review)
+            
+            # Perform sentiment analysis
+            sentiment_score = TextBlob(review).sentiment.polarity
+            
+            # Append the result to the language group
+            analysis_results[language].append({
+                "review": review,
+                "sentiment_score": sentiment_score
+            })
+        except Exception as e:
+            # Handle cases where language detection fails
+            analysis_results["unknown"].append({
+                "review": review,
+                "error": str(e)
+            })
+    
+    # Calculate average sentiment per language
+    summary = {}
+    for language, reviews_data in analysis_results.items():
+        sentiments = [entry["sentiment_score"] for entry in reviews_data if "sentiment_score" in entry]
+        avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0
+        
+        summary[language] = {
+            "average_sentiment": avg_sentiment,
+            "reviews": reviews_data
+        }
+    
+    return summary
+
+def frequent_phrases_analysis(reviews, top_n=5):
+    """
+    Analyze frequent complaint and compliment phrases in reviews.
+    
+    Args:
+        reviews (list): List of review texts.
+        top_n (int): Number of top frequent phrases to extract.
+    
+    Returns:
+        dict: Most frequent complaint and compliment phrases.
+    """
+    compliments = Counter()
+    complaints = Counter()
+
+    for review in reviews:
+        # Analyze sentiment
+        sentiment_score = TextBlob(review).sentiment.polarity
+        
+        # Extract noun phrases using TextBlob
+        blob = TextBlob(review)
+        phrases = blob.noun_phrases
+
+        # Classify phrases as complaints or compliments based on sentiment
+        if sentiment_score > 0:  # Positive sentiment
+            compliments.update(phrases)
+        elif sentiment_score < 0:  # Negative sentiment
+            complaints.update(phrases)
+
+    # Get top phrases
+    top_compliments = compliments.most_common(top_n)
+    top_complaints = complaints.most_common(top_n)
+
+    return {
+        "top_compliments": [{"phrase": phrase, "count": count} for phrase, count in top_compliments],
+        "top_complaints": [{"phrase": phrase, "count": count} for phrase, count in top_complaints]
+    }
 
 def post_to_rapidapi(reviews):
     """
     Post Google reviews to RapidAPI for actionable recommendations for owners and customers.
     """
-    url = "https://chatgpt-42.p.rapidapi.com/chatgpt"
+    url = "https://chatgpt-42.p.rapidapi.com/gpt4"
     
     # Prompt the AI to return recommendations in JSON format
     content = (
@@ -190,7 +310,7 @@ def post_to_rapidapi(reviews):
         "web_access": False
     }
     headers = {
-        "x-rapidapi-key": "9d443f0279mshdebd82de2c89274p1c4e01jsn4b7d142ea901",
+        "x-rapidapi-key": "b36b632ea3mshfba10ef37270d8fp1afd04jsn9e5f5e25573e__",
         "x-rapidapi-host": "chatgpt-42.p.rapidapi.com",
         "Content-Type": "application/json"
     }
@@ -198,14 +318,34 @@ def post_to_rapidapi(reviews):
     try:
         response = requests.post(url, json=payload, headers=headers)
         response_data = response.json()
-        print("Raw RapidAPI Response:", response_data)  # Debugging the API response
+        print("Raw RapidAPI Response:", response_data.get("status"))  # Debugging the API response
 
         # Extract the result key and parse it as JSON
-        if response_data.get("status"):
-            raw_result = response_data.get("result", "{}")
-            parsed_result = json.loads(raw_result)  # Convert JSON string to a Python dictionary
-            return parsed_result
+        if response_data.get("status") and "result" in response_data:
+            raw_result = response_data["result"]
+            if isinstance(raw_result, str):
+                try:
+                    # Remove backticks and "json" tag if present
+                    raw_result_cleaned = raw_result.strip("`").strip()
+                    if raw_result_cleaned.startswith("json\n"):
+                        raw_result_cleaned = raw_result_cleaned[5:].strip()
+
+                    # Parse the cleaned JSON string
+                    parsed_result = json.loads(raw_result_cleaned)
+                    return parsed_result
+                except json.JSONDecodeError as e:
+                    print(f"JSON decoding error: {e}")
+                    print("Raw result for debugging:", raw_result)
+                    return {
+                        "title": "Invalid JSON response",
+                        "overall_aspect": "N/A",
+                        "for_owners": [],
+                        "for_customers": []
+                    }
+            else:
+                return raw_result  # Already parsed
         else:
+            print("API responded but status is False or 'result' key is missing.")
             return {
                 "title": "Failed to fetch recommendations",
                 "overall_aspect": "N/A",
@@ -220,6 +360,134 @@ def post_to_rapidapi(reviews):
             "for_owners": [],
             "for_customers": []
         }
+
+def combine_reviews(tripadvisor_reviews, google_reviews):
+    """
+    Combines TripAdvisor and Google reviews into one list with unique entries.
+    """
+    # Combine reviews from both sources
+    combined_reviews = tripadvisor_reviews + google_reviews
+    
+    # Remove duplicates (optional, in case reviews overlap)
+    combined_reviews = list(set(combined_reviews))
+    
+    return combined_reviews
+
+def most_common_words(reviews, n=10):
+    """
+    Analyze the most common words in reviews.
+    Returns a dictionary with words and their frequency.
+    """
+    text = ' '.join(reviews)
+    vectorizer = CountVectorizer(stop_words='english')
+    word_counts = vectorizer.fit_transform([text])
+    word_freq = zip(vectorizer.get_feature_names_out(), word_counts.toarray()[0])
+    sorted_words = sorted(word_freq, key=lambda x: x[1], reverse=True)[:n]
+    return [{"word": word, "count": int(count)} for word, count in sorted_words]
+
+# def negative_feedback_root_cause_analysis(reviews, sentiment_threshold=-0.5):
+#     """
+#     Analyze negative reviews and extract the root cause of negative feedback using dependency parsing.
+    
+#     Args:
+#         reviews (list): List of review texts.
+#         sentiment_threshold (float): Sentiment score below which a review is considered negative.
+    
+#     Returns:
+#         list: Extracted root causes of negative reviews with subjects, verbs, and objects.
+#     """
+#     negative_reviews = []
+    
+#     for review in reviews:
+#         # Analyze sentiment of the review
+#         sentiment_score = TextBlob(review).sentiment.polarity
+        
+#         # If the sentiment score is below the threshold, analyze the review
+#         if sentiment_score < sentiment_threshold:
+#             # Parse the review text using spaCy
+#             doc = nlp(review)
+#             root_causes = []
+            
+#             for token in doc:
+#                 # Look for the subject-verb-object structure
+#                 if token.dep_ == "nsubj" and token.head.pos_ == "VERB":  # Subject linked to a verb
+#                     subject = token.text
+#                     verb = token.head.text
+#                     object_ = " ".join([child.text for child in token.head.children if child.dep_ == "dobj"])
+#                     root_causes.append({
+#                         "subject": subject,
+#                         "verb": verb,
+#                         "object": object_ if object_ else None
+#                     })
+            
+#             # Append results for this review
+#             negative_reviews.append({
+#                 "review": review,
+#                 "sentiment_score": sentiment_score,
+#                 "root_causes": root_causes
+#             })
+    
+#     return negative_reviews
+
+def review_length_analysis(reviews):
+    """
+    Analyze the length of reviews and categorize them.
+    Returns the average length and counts of short, medium, and long reviews.
+    """
+    lengths = [len(review.split()) for review in reviews]
+    short_reviews = len([l for l in lengths if l <= 20])
+    medium_reviews = len([l for l in lengths if 21 <= l <= 50])
+    long_reviews = len([l for l in lengths if l > 50])
+
+    return {
+        "average_length": sum(lengths) / len(lengths) if lengths else 0,
+        "short_reviews": short_reviews,
+        "medium_reviews": medium_reviews,
+        "long_reviews": long_reviews
+    }
+
+def customer_retention_risk_analysis(reviews, threshold=-0.5):
+    """
+    Analyze customer reviews to identify retention risks based on negative sentiment.
+    
+    Args:
+        reviews (list): List of customer reviews.
+        threshold (float): Sentiment score below which a review is flagged as high risk.
+    
+    Returns:
+        dict: Reviews categorized by risk levels (high, medium, low).
+    """
+    risk_analysis = {
+        "high_risk": [],
+        "medium_risk": [],
+        "low_risk": []
+    }
+    
+    for review in reviews:
+        # Perform sentiment analysis
+        sentiment_score = TextBlob(review).sentiment.polarity
+        
+        # Categorize risk levels
+        if sentiment_score < threshold:
+            risk_analysis["high_risk"].append({
+                "review": review,
+                "sentiment_score": sentiment_score,
+                "risk_level": "High"
+            })
+        elif threshold <= sentiment_score < 0:
+            risk_analysis["medium_risk"].append({
+                "review": review,
+                "sentiment_score": sentiment_score,
+                "risk_level": "Medium"
+            })
+        else:
+            risk_analysis["low_risk"].append({
+                "review": review,
+                "sentiment_score": sentiment_score,
+                "risk_level": "Low"
+            })
+    
+    return risk_analysis
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -250,18 +518,24 @@ def analyze():
 
     # Step 4: Get recommendations from RapidAPI
     recommendations = post_to_rapidapi(google_reviews)
-
+    # "recommendations": recommendations,
     # Step 5: Generate word cloud for reviews
     word_cloud = generate_word_cloud(google_reviews)
 
+    all_reviews = combine_reviews(tripadvisor_reviews, google_reviews)
     # Step 6: Return results
     return jsonify({
         "location_name": location_name,
         "google_sentiment": google_sentiment,
         "tripadvisor_sentiment": tripadvisor_sentiment,
         "overall_sentiment": overall_sentiment,
+        "word_cloud": word_cloud,
+        "most_common_words": most_common_words(all_reviews),
         "recommendations": recommendations,
-        "word_cloud": word_cloud
+        "frequent_phrases_analysis": frequent_phrases_analysis(all_reviews, top_n=3),
+        "customer_retention_risk_analysis": customer_retention_risk_analysis(all_reviews, threshold=-0.5),
+        "emotions": detect_emotions(all_reviews)
+        #"language_detection_and_sentiment": language_detection_and_sentiment(all_reviews)
     })
 
 @app.route('/compare', methods=['POST'])

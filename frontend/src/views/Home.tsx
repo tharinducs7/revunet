@@ -160,7 +160,7 @@ const MapSearchBox = () => {
                                 className="hover:shadow-lg transition duration-150 ease-in-out dark:border dark:border-gray-600 dark:border-solid"
                             >
                                 <span className="text-emerald-600 font-semibold">
-                                    Sentiment Analysis with Recommendations
+                                    Sentiment Analysis with Recommendations: {responseData?.location_name}
                                 </span>
                                 {responseData ? (
                                     <div className="space-y-4">
@@ -197,8 +197,8 @@ const MapSearchBox = () => {
                                                                     <div className="w-full">
                                                                         <ul className="list-disc pl-5">
                                                                             {responseData.recommendations.for_customers.map((insight: any, index: number) => (
-                                                                                <li key={index}>
-                                                                                    <strong>{insight.title}</strong>: {insight.insights} (Priority: {insight.priority})
+                                                                                <li key={index} className="mb-2">
+                                                                                    <strong>{insight.title}</strong>: {insight.insights}
                                                                                 </li>
                                                                             ))}
                                                                         </ul>
@@ -221,7 +221,7 @@ const MapSearchBox = () => {
 
 
 
-                                        <h4 className="font-bold">{responseData.location_name}</h4>
+                                        {/* <h4 className="font-bold">{responseData.location_name}</h4> */}
                                         {/* <div className="text-sm">
                         <ReviewStats googleSentiment={responseData?.google_sentiment} tripadvisorSentiment={responseData?.tripadvisor_sentiment}/>
                       <p className="font-medium text-gray-700">**Google Sentiment Analysis:**</p>
@@ -245,7 +245,7 @@ const MapSearchBox = () => {
                         </span>
                       </p>
                     </div> */}
-                                        <div>
+                                        {/* <div>
                                             <h5 className="font-semibold text-lg">Recommendations</h5>
                                             <h6 className="font-bold">For Owners</h6>
                                             <ul className="list-disc pl-5">
@@ -271,7 +271,7 @@ const MapSearchBox = () => {
                                                 alt="Word Cloud"
                                                 className="w-full max-h-64 object-contain"
                                             />
-                                        </div>
+                                        </div> */}
                                     </div>
                                 ) : (
                                     <p className="text-gray-500">Select a place to view sentiment analysis.</p>
