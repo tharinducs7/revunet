@@ -7,7 +7,7 @@ from app.services.voice_of_customers import extract_voc_insights
 from app.services.recommendations import post_to_rapidapi, post_comparison_to_rapidapi
 from app.services.analytics import generate_word_cloud, frequent_phrases_analysis
 from app.utils.helpers import combine_reviews
-from app.services.emotions import detect_emotions
+from app.services.emotions import detect_emotions, post_emotions_to_chatgpt
 
 main_bp = Blueprint('main', __name__)
 
@@ -34,14 +34,17 @@ def analyze():
     else:
         tripadvisor_sentiment = {"average_sentiment": 0, "detailed_sentiments": []}
         overall_sentiment = google_sentiment['average_sentiment']
-        
-    recommendations = post_to_rapidapi(google_reviews)
+    
     all_reviews = combine_reviews(tripadvisor_reviews, google_reviews)
+
+    emotions = detect_emotions(all_reviews)
+    recommendations = post_to_rapidapi(google_reviews)
     word_cloud = generate_word_cloud(all_reviews)
     aspect_results = aspect_based_sentiment_analysis(all_reviews)
+    voc = extract_voc_insights(all_reviews)
     summary_ascepct = generate_aspect_summary(aspect_results)
     aspect_word_cloud_base64 = generate_word_cloud(aspect_results)
-    voc = extract_voc_insights(all_reviews)
+    what_emotions_says = post_emotions_to_chatgpt(emotions)
 
     return jsonify({
         "aspect_analysis": {
@@ -56,7 +59,8 @@ def analyze():
         "word_cloud": word_cloud,
         "recommendations": recommendations,
         "frequent_phrases_analysis": frequent_phrases_analysis(all_reviews),
-        "emotions": detect_emotions(all_reviews),
+        "emotions": emotions,
+        "what_emotions_says": what_emotions_says,
         "voc": voc,
     })
 
@@ -69,7 +73,7 @@ def compare():
     if not location_id1 or not location_id2:
         return jsonify({"error": "Both location_id1 and location_id2 are required"}), 400
 
-    # Fetch reviews for location 1
+    
     location_name1, google_reviews1 = fetch_google_reviews(location_id1)
     if not google_reviews1:
         return jsonify({"error": f"No reviews found for location_id1: {location_id1}"}), 404
@@ -77,7 +81,7 @@ def compare():
     tripadvisor_reviews1 = fetch_tripadvisor_reviews(location_name1)
     all_reviews1 = combine_reviews(tripadvisor_reviews1, google_reviews1)
 
-    # Fetch reviews for location 2
+    
     location_name2, google_reviews2 = fetch_google_reviews(location_id2)
     if not google_reviews2:
         return jsonify({"error": f"No reviews found for location_id2: {location_id2}"}), 404
@@ -85,7 +89,7 @@ def compare():
     tripadvisor_reviews2 = fetch_tripadvisor_reviews(location_name2)
     all_reviews2 = combine_reviews(tripadvisor_reviews2, google_reviews2)
 
-    # Use post_comparison_to_rapidapi to compare both locations
+    
     comparison_result = post_comparison_to_rapidapi(
         reviews1=all_reviews1,
         reviews2=all_reviews2,
@@ -93,13 +97,14 @@ def compare():
         location_name2=location_name2
     )
 
-    # Extract individual sentiments and emotions for each location for additional insights
+    
     google_sentiment1 = analyze_sentiment(google_reviews1)
     overall_sentiment1 = google_sentiment1['average_sentiment']
     if tripadvisor_reviews1:
         tripadvisor_sentiment1 = analyze_sentiment(tripadvisor_reviews1)
         overall_sentiment1 = (google_sentiment1['average_sentiment'] + tripadvisor_sentiment1['average_sentiment']) / 2
     emotions1 = detect_emotions(all_reviews1)
+    what_emotions_says1 = post_emotions_to_chatgpt(emotions1)
 
     google_sentiment2 = analyze_sentiment(google_reviews2)
     overall_sentiment2 = google_sentiment2['average_sentiment']
@@ -107,19 +112,22 @@ def compare():
         tripadvisor_sentiment2 = analyze_sentiment(tripadvisor_reviews2)
         overall_sentiment2 = (google_sentiment2['average_sentiment'] + tripadvisor_sentiment2['average_sentiment']) / 2
     emotions2 = detect_emotions(all_reviews2)
+    what_emotions_says2 = post_emotions_to_chatgpt(emotions2)
 
-    # Append detailed insights and individual recommendations to the comparison result
+    
     comparison_result["location1"] = {
         "name": location_name1,
         "google_sentiment": google_sentiment1,
         "overall_sentiment": overall_sentiment1,
         "emotions": emotions1,
+        "what_emotions_says1": what_emotions_says1
     }
     comparison_result["location2"] = {
         "name": location_name2,
         "google_sentiment": google_sentiment2,
         "overall_sentiment": overall_sentiment2,
         "emotions": emotions2,
+        "what_emotions_says2": what_emotions_says2
     }
 
     return jsonify(comparison_result)

@@ -7,12 +7,15 @@ import Tabs from '@/components/ui/Tabs'
 import TabList from "@/components/ui/Tabs/TabList";
 import TabNav from "@/components/ui/Tabs/TabNav";
 import TabContent from "@/components/ui/Tabs/TabContent";
+import EmotionAnalysis from "@/components/shared/EmotionAnalysis";
+import Loading from "@/components/shared/Loading";
 
 const MapSearchBox = () => {
     const mapRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [selectedPlace, setSelectedPlace] = useState<google.maps.places.PlaceResult | null>(null);
     const [responseData, setResponseData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState<any>(false);
 
     const loadGoogleMapsScript = async (): Promise<void> => {
         if (typeof window.google !== "undefined") {
@@ -99,6 +102,7 @@ const MapSearchBox = () => {
                     }
 
                     setSelectedPlace(place);
+                    setResponseData(null);
                 });
 
                 map.fitBounds(bounds);
@@ -115,9 +119,11 @@ const MapSearchBox = () => {
     }, []);
 
     const fetchSentimentData = async (placeId: string) => {
+        setIsLoading(true)
         try {
             const response = await axios.post("http://127.0.0.1:5000/analyze", { location_id: placeId });
             setResponseData(response.data);
+            setIsLoading(false)
         } catch (error) {
             console.error("Error fetching sentiment data:", error);
         }
@@ -179,6 +185,7 @@ const MapSearchBox = () => {
                         <ReviewStats googleSentiment={responseData?.google_sentiment} tripadvisorSentiment={responseData?.tripadvisor_sentiment} />
                     </div>
                     <div className="flex flex-col gap-4 flex-1 xl:col-span-3">
+                        <Loading loading={isLoading}>
                         <div className="max-w-full">
                             <Card
                                 clickable
@@ -231,6 +238,7 @@ const MapSearchBox = () => {
                                                                 </TabContent>
                                                             </div>
                                                         </Tabs>
+                                                        <EmotionAnalysis what_emotions_says={responseData?.what_emotions_says} />
                                                     </div>
                                                 </div>
                                             </div>
@@ -251,15 +259,8 @@ const MapSearchBox = () => {
                                                     </ul>
                                                 </div>
                                                 <div className="text-sm m-2">
-                                                {/* <img
-                                                    src={`data:image/png;base64,${responseData?.aspect_analysis?.summary_ascepct}`}
-                                                    alt="Word Cloud"
-                                                    className="w-full max-h-64 object-contain"
-                                                /> */}
+                                              
                                                 </div>
-                                                {/* <div className="text-sm m-2">
-                        {responseData?.aspect_analysis?.summary_ascepct}
-                                                </div> */}
                                             </div>
                                         </div>
                                     </div>
@@ -268,6 +269,7 @@ const MapSearchBox = () => {
                                 )}
                             </Card>
                         </div>
+                        </Loading>
                     </div>
                 </div>
             </div>

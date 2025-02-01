@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui";
 import axios from "axios";
 import SentimentAlert from "@/components/shared/SentimentAlert";
+import EmotionAnalysis from "@/components/shared/EmotionAnalysis";
 
 const MapSearchBox = () => {
     const mapRef1 = useRef<HTMLDivElement | null>(null);
@@ -9,9 +10,15 @@ const MapSearchBox = () => {
     const mapRef2 = useRef<HTMLDivElement | null>(null);
     const inputRef2 = useRef<HTMLInputElement | null>(null);
 
-    const [selectedPlace1, setSelectedPlace1] = useState<google.maps.places.PlaceResult | null>(null);
-    const [selectedPlace2, setSelectedPlace2] = useState<google.maps.places.PlaceResult | null>(null);
-    const [comparisonResult, setComparisonResult] = useState<any>(null);
+    const [selectedPlace1, setSelectedPlace1] = useState<google.maps.places.PlaceResult | null>(
+        JSON.parse(localStorage.getItem("selectedPlace1") || "null")
+    );
+    const [selectedPlace2, setSelectedPlace2] = useState<google.maps.places.PlaceResult | null>(
+        JSON.parse(localStorage.getItem("selectedPlace2") || "null")
+    );
+    const [comparisonResult, setComparisonResult] = useState<any>(
+        JSON.parse(localStorage.getItem("comparisonResult") || "null")
+    );
     const [loading, setLoading] = useState(false);
 
     const loadGoogleMapsScript = async (): Promise<void> => {
@@ -19,7 +26,7 @@ const MapSearchBox = () => {
 
         return new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&libraries=places`;
             script.async = true;
             script.defer = true;
             script.onload = () => resolve();
@@ -57,7 +64,7 @@ const MapSearchBox = () => {
                 markers.push(new google.maps.Marker({ map, position: place.geometry.location }));
                 bounds.extend(place.geometry.location);
                 setSelectedPlace(place);
-                setComparisonResult(null);
+                setComparisonResult(null); // Clear comparison result on new selection
             });
 
             map.fitBounds(bounds);
@@ -65,13 +72,11 @@ const MapSearchBox = () => {
     };
 
     const getTopEmotion = (emotions: any) => {
-        // Exclude "positive", "negative", and "trust"
         const excludedKeys = ["positive", "negative", "trust"];
         const filteredEmotions = Object.entries(emotions).filter(
             ([key]) => !excludedKeys.includes(key)
         );
 
-        // Find the top emotion from the filtered list
         const topEmotion = filteredEmotions.reduce<[string, number]>(
             (max, current) =>
                 current[1] as number > max[1]
@@ -81,6 +86,26 @@ const MapSearchBox = () => {
         );
 
         return `${topEmotion[0]} (${topEmotion[1]})`;
+    };
+
+    const getEmotionsWithEmojis = (emotions: any) => {
+        const emotionEmojis: { [key: string]: string } = {
+            anger: "😡",
+            anticipation: "🤔",
+            disgust: "🤢",
+            fear: "😨",
+            joy: "😊",
+            sadness: "😢",
+            surprise: "😮",
+        };
+
+        const sortedEmotions = Object.entries(emotions)
+            .filter(([key]) => key in emotionEmojis)
+            .sort((a, b) => (b[1] as number) - (a[1] as number));
+
+        return sortedEmotions.map(
+            ([emotion, value]) => `${emotionEmojis[emotion]} ${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${value})`
+        );
     };
 
     const handleCompare = async () => {
@@ -103,35 +128,19 @@ const MapSearchBox = () => {
         }
     };
 
-    const getEmotionsWithEmojis = (emotions: any) => {
-        // Map of emotions to emojis
-        const emotionEmojis: { [key: string]: string } = {
-            anger: "😡",
-            anticipation: "🤔",
-            disgust: "🤢",
-            fear: "😨",
-            joy: "😊",
-            sadness: "😢",
-            surprise: "😮",
-        };
-
-        // Filter and sort emotions in descending order of values
-        const sortedEmotions = Object.entries(emotions)
-            .filter(([key]) => key in emotionEmojis) // Only include emotions with emojis
-            .sort((a, b) => (b[1] as number) - (a[1] as number)); // Sort by value (highest to lowest)
-
-        // Return sorted emotions with emojis
-        return sortedEmotions.map(
-            ([emotion, value]) => `${emotionEmojis[emotion]} ${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${value})`
-        );
-    };
-
     useEffect(() => {
         loadGoogleMapsScript().then(() => {
             initializeAutocomplete(mapRef1, inputRef1, setSelectedPlace1);
             initializeAutocomplete(mapRef2, inputRef2, setSelectedPlace2);
         });
     }, []);
+
+    // Save data to localStorage whenever state changes
+    useEffect(() => {
+        localStorage.setItem("selectedPlace1", JSON.stringify(selectedPlace1));
+        localStorage.setItem("selectedPlace2", JSON.stringify(selectedPlace2));
+        localStorage.setItem("comparisonResult", JSON.stringify(comparisonResult));
+    }, [selectedPlace1, selectedPlace2, comparisonResult]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
@@ -187,6 +196,7 @@ const MapSearchBox = () => {
                                         </li>
                                     ))}
                                 </ul>
+                                <EmotionAnalysis what_emotions_says={comparisonResult.location1.what_emotions_says1} />
                             </div>
                         </Card>
                         <Card className="p-4">
@@ -206,6 +216,7 @@ const MapSearchBox = () => {
                                         </li>
                                     ))}
                                 </ul>
+                                <EmotionAnalysis what_emotions_says={comparisonResult.location2.what_emotions_says2} />
                             </div>
                         </Card>
                     </div>

@@ -32,7 +32,7 @@ def post_to_rapidapi(reviews):
         "web_access": False
     }
     headers = {
-        "x-rapidapi-key": "YOUR_RAPIDAPI_KEY",
+        "x-rapidapi-key": "b36b632ea3mshfba10ef37270d8fp1afd04jsn9e5f5e25573e",
         "x-rapidapi-host": "chatgpt-42.p.rapidapi.com",
         "Content-Type": "application/json"
     }
