@@ -20,7 +20,7 @@ const navigationConfig: NavigationTree[] = [
     /** Example purpose only, please remove */
     {
         key: 'singleMenuItem',
-        path: '/single-menu-view',
+        path: '/compare-businesses',
         title: 'Compare Busineses',
         translateKey: 'nav.singleMenuItem',
         icon: 'singleMenu',

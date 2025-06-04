@@ -5,6 +5,22 @@ import string
 from collections import Counter
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get values from environment
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST")
+RAPIDAPI_URL = os.getenv("RAPIDAPI_URL")
+
+HEADERS = {
+    "x-rapidapi-key": RAPIDAPI_KEY,
+    "x-rapidapi-host": RAPIDAPI_HOST,
+    "Content-Type": "application/json"
+}
 
 def detect_emotions(reviews):
     """
@@ -41,7 +57,7 @@ def post_emotions_to_chatgpt(emotions):
     Returns:
         str: A paragraph summarizing customer sentiments toward the business.
     """
-    url = "https://chatgpt-42.p.rapidapi.com/gpt4"
+    # url = "https://open-ai21.p.rapidapi.com/conversationllama"
     prompt = (
         f"The following emotion analysis was detected from customer reviews:\n\n"
         f"{emotions}\n\n"
@@ -53,14 +69,14 @@ def post_emotions_to_chatgpt(emotions):
         "messages": [{"role": "user", "content": prompt}],
         "web_access": False
     }
-    headers = {
-        "x-rapidapi-key": "b36b632ea3mshfba10ef37270d8fp1afd04jsn9e5f5e25573e",
-        "x-rapidapi-host": "chatgpt-42.p.rapidapi.com",
-        "Content-Type": "application/json"
-    }
+    # headers = {
+    #     "x-rapidapi-key": "82892ec185msh9a4a5f132dfc5bdp1605abjsn56ac682951c6",
+    #     "x-rapidapi-host": "open-ai21.p.rapidapi.com",
+    #     "Content-Type": "application/json"
+    # }
 
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(RAPIDAPI_URL, json=payload, headers=HEADERS)
         response_data = response.json()
 
         if response_data.get("status") and "result" in response_data:

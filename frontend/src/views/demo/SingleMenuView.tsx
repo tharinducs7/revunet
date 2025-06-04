@@ -190,7 +190,7 @@ const MapSearchBox = () => {
                             <div className="text-sm ">
                             <strong>Consumer Emotions:</strong>
                                 <ul className="mt-2 space-y-1">
-                                    {getEmotionsWithEmojis(comparisonResult.location1.emotions).map((emotion, index) => (
+                                    {getEmotionsWithEmojis(comparisonResult.location1.emotions)?.map((emotion, index) => (
                                         <li key={index} className="flex items-center space-x-2">
                                             <span>{emotion}</span>
                                         </li>
@@ -210,7 +210,7 @@ const MapSearchBox = () => {
                             <div className="text-sm">
                                 <strong>Consumer Emotions:</strong>
                                 <ul className="mt-2 space-y-1">
-                                    {getEmotionsWithEmojis(comparisonResult.location2.emotions).map((emotion, index) => (
+                                    {getEmotionsWithEmojis(comparisonResult.location2.emotions)?.map((emotion, index) => (
                                         <li key={index} className="flex items-center space-x-2">
                                             <span>{emotion}</span>
                                         </li>
@@ -261,7 +261,7 @@ const MapSearchBox = () => {
                                     Recommendations for {comparisonResult.location1.name}
                                 </h4>
                                 <ul className="space-y-3">
-                                    {comparisonResult.recommendations.for_business1.map((rec: any, index: number) => (
+                                    {comparisonResult.recommendations.for_business1?.map((rec: any, index: number) => (
                                         <li key={index} className="p-3 border rounded-lg bg-gray-50">
                                             <strong className="block mb-1 text-sm">{rec.title}</strong>
                                             <span className="text-xs text-gray-600">Priority: {rec.priority}</span>
@@ -277,7 +277,7 @@ const MapSearchBox = () => {
                                     Recommendations for {comparisonResult.location2.name}
                                 </h4>
                                 <ul className="space-y-3">
-                                    {comparisonResult.recommendations.for_business2.map((rec: any, index: number) => (
+                                    {comparisonResult.recommendations.for_business2?.map((rec: any, index: number) => (
                                         <li key={index} className="p-3 border rounded-lg bg-gray-50">
                                             <strong className="block mb-1 text-sm">{rec.title}</strong>
                                             <span className="text-xs text-gray-600">Priority: {rec.priority}</span>

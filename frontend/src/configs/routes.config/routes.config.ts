@@ -15,7 +15,7 @@ export const protectedRoutes: Routes = [
     /** Example purpose only, please remove */
     {
         key: 'singleMenuItem',
-        path: '/single-menu-view',
+        path: '/compare-businesses',
         component: lazy(() => import('@/views/demo/SingleMenuView')),
         authority: [],
     },
