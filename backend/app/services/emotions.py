@@ -57,7 +57,6 @@ def post_emotions_to_chatgpt(emotions):
     Returns:
         str: A paragraph summarizing customer sentiments toward the business.
     """
-    # url = "https://open-ai21.p.rapidapi.com/conversationllama"
     prompt = (
         f"The following emotion analysis was detected from customer reviews:\n\n"
         f"{emotions}\n\n"
@@ -69,11 +68,6 @@ def post_emotions_to_chatgpt(emotions):
         "messages": [{"role": "user", "content": prompt}],
         "web_access": False
     }
-    # headers = {
-    #     "x-rapidapi-key": "82892ec185msh9a4a5f132dfc5bdp1605abjsn56ac682951c6",
-    #     "x-rapidapi-host": "open-ai21.p.rapidapi.com",
-    #     "Content-Type": "application/json"
-    # }
 
     try:
         response = requests.post(RAPIDAPI_URL, json=payload, headers=HEADERS)
