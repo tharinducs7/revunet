@@ -12,9 +12,8 @@ import torch
 from torch.nn.functional import softmax
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# ---- Config ----
-_MODEL_DIR = Path("models/bert_sentiment")   # your fine-tuned model directory
-_HF_FALLBACK = "distilbert-base-uncased"     # fallback if no local model
+_MODEL_DIR = Path("models/bert_sentiment")
+_HF_FALLBACK = "distilbert-base-uncased"
 _LABELS = ["Negative", "Neutral", "Positive"]
 _ID2LAB = {0: "Negative", 1: "Neutral", 2: "Positive"}
 
@@ -140,8 +139,8 @@ def analyze_sentiment(reviews):
         scores.append(score)
 
     # aggregate
-    avg_sentiment = float(sum(scores) / max(1, len(scores)))  # [-1,1]
-    # map score to 0..5 stars (as original code did: (score+1)*2.5 )
+    avg_sentiment = float(sum(scores) / max(1, len(scores)))
+
     avg_star_count = float((avg_sentiment + 1.0) * 2.5)
 
     sentiment_category_group = dict(Counter(cats))
