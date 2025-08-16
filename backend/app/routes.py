@@ -2,8 +2,7 @@ from flask import Blueprint, jsonify, request
 from app.services.sentiment import analyze_sentiment
 from app.services.reviews import fetch_google_reviews, fetch_tripadvisor_reviews
 from app.services.sentiment_by_aspect import aspect_based_sentiment_analysis
-from app.services.bar_chart import generate_bar_chart, generate_aspect_summary
-from app.services.voice_of_customers import extract_voc_insights
+from app.services.bar_chart import generate_aspect_summary
 from app.services.recommendations import post_to_rapidapi, post_comparison_to_rapidapi
 from app.services.analytics import generate_word_cloud, frequent_phrases_analysis
 from app.utils.helpers import combine_reviews
@@ -41,7 +40,6 @@ def analyze():
     recommendations = post_to_rapidapi(google_reviews)
     word_cloud = generate_word_cloud(all_reviews)
     aspect_results = aspect_based_sentiment_analysis(all_reviews)
-    voc = extract_voc_insights(all_reviews)
     summary_ascepct = generate_aspect_summary(aspect_results)
     aspect_word_cloud_base64 = generate_word_cloud(aspect_results)
     what_emotions_says = post_emotions_to_chatgpt(emotions)
@@ -61,7 +59,6 @@ def analyze():
         "frequent_phrases_analysis": frequent_phrases_analysis(all_reviews),
         "emotions": emotions,
         "what_emotions_says": what_emotions_says,
-        "voc": voc,
     })
 
 @main_bp.route('/compare', methods=['POST'])
