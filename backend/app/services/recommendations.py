@@ -45,12 +45,7 @@ def post_to_rapidapi(reviews):
         "messages": [{"role": "user", "content": content}],
         "web_access": False
     }
-    # headers = {
-    #     "x-rapidapi-key": "82892ec185msh9a4a5f132dfc5bdp1605abjsn56ac682951c6",
-    #     "x-rapidapi-host": "open-ai21.p.rapidapi.com",
-    #     "Content-Type": "application/json"
-    # }
-
+ 
     print("content:", content)
 
     try:

@@ -92,7 +92,6 @@ def most_common_words(reviews, n=10):
     sorted_words = sorted(word_freq, key=lambda x: x[1], reverse=True)[:n]
     return [{"word": w, "count": int(c)} for w, c in sorted_words]
 
-# ---------------- Replaced TextBlob logic with BERT ----------------
 def _clean_for_ngrams(s: str) -> str:
     s = re.sub(r"http\S+", " ", s)
     s = re.sub(r"[^A-Za-z0-9\s]", " ", s)
